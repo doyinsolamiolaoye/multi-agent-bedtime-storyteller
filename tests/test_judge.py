@@ -19,12 +19,13 @@ with patch("openai.OpenAI"):
 VALID_EVALUATION = {
     "scores": {
         "age_appropriateness": 9,
-        "engagement_and_pacing": 8,
+        "engagement_and_bedtime_flow": 8,
         "narrative_structure": 8,
         "language_and_vocabulary": 9,
         "moral_and_lesson": 8,
+        "request_following": 9,
     },
-    "overall_score": 8.4,
+    "overall_score": 8.5,
     "feedback": "Well-structured story with vivid language.",
     "strengths": ["good pacing", "age-appropriate vocabulary"],
     "areas_for_improvement": ["could use more dialogue"],
@@ -40,8 +41,9 @@ class TestEvaluateStory:
         mock_json.return_value = dict(VALID_EVALUATION)
 
         result = evaluate_story("Once upon a time...", "a fairy tale")
-        assert result["overall_score"] == 8.4
+        assert result["overall_score"] == 8.5
         assert result["scores"]["age_appropriateness"] == 9
+        assert result["scores"]["request_following"] == 9
         assert len(result["strengths"]) == 2
 
     @patch("judge.call_model_json")
@@ -50,10 +52,11 @@ class TestEvaluateStory:
         response = {
             "scores": {
                 "age_appropriateness": 10,
-                "engagement_and_pacing": 8,
+                "engagement_and_bedtime_flow": 8,
                 "narrative_structure": 6,
                 "language_and_vocabulary": 10,
                 "moral_and_lesson": 6,
+                "request_following": 8,
             },
             "feedback": "Mixed results.",
             "strengths": [],
@@ -62,7 +65,7 @@ class TestEvaluateStory:
         mock_json.return_value = response
 
         result = evaluate_story("story text", "request text")
-        assert result["overall_score"] == 8.0  # (10+8+6+10+6)/5
+        assert result["overall_score"] == 8.0  # (10+8+6+10+6+8)/6
 
     @patch("judge.call_model_json")
     def test_falls_back_on_parse_error(self, mock_json):
@@ -108,17 +111,18 @@ class TestPassesThreshold:
         """Demonstrates the average-score vulnerability.
 
         A story with 0 on age_appropriateness but 10 on everything else
-        has an average of 8.0 — which PASSES the judge threshold (7).
+        has an average of 8.3 — which PASSES the judge threshold (7).
         This is why we need the Safety Filter as a separate gate.
         """
         dangerous_scores = {
             "age_appropriateness": 0,
-            "engagement_and_pacing": 10,
+            "engagement_and_bedtime_flow": 10,
             "narrative_structure": 10,
             "language_and_vocabulary": 10,
             "moral_and_lesson": 10,
+            "request_following": 10,
         }
         average = sum(dangerous_scores.values()) / len(dangerous_scores)
-        assert average == 8.0
+        assert round(average, 1) == 8.3  # 50/6 ≈ 8.3
         assert passes_threshold({"overall_score": average}) is True  # ← This passes!
         # This is exactly why the Safety Filter exists as an independent gate.

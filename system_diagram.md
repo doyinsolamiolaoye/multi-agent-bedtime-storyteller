@@ -5,84 +5,110 @@
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                         USER (Terminal)                             │
-│  • Enters a story request ("A story about a brave little dragon")   │
-│  • Optionally provides feedback to revise the story                 │
+│  • Enters a story request ("A story about a brave little dragon")  │
+│  • Optionally provides feedback to revise the story                │
 └──────────────┬──────────────────────────────────────▲───────────────┘
-               │ story request                        │ final story +
-               │                                      │ judge scores +
-               ▼                                      │ safety status
-┌───────────────────────────────────────────────────────────────────────┐
-│                       🎯 ORCHESTRATOR                                 │
-│                                                                       │
-│  Coordinates the pipeline and manages TWO independent gates:          │
-│                                                                       │
-│  Steps:                                                               │
-│    1. Send request → Categorizer                                      │
-│    2. Send category + request → Arc Planner                           │
-│    3. Send arc + category + request → Storyteller                     │
-│    4. Send draft → Judge (QUALITY GATE)                               │
-│    5. If score < 7/10 and iterations < 3 → loop to Storyteller        │
-│    6. Send story → Safety Filter (SAFETY GATE — independent)          │
-│    7. If unsafe → loop to Storyteller for safety rewrite (up to 2x)   │
-│    8. Present final story + scores + safety status to User            │
-│    9. If user provides feedback → Storyteller → Judge → Safety again  │
-│                                                                       │
-│  ┌──────────┐ ┌────────────┐ ┌───────────┐ ┌──────────┐ ┌─────────┐   │
-│  │CATEGO-   │ │  STORY ARC │ │   STORY-  │ │  JUDGE   │ │ SAFETY  │   │
-│  │  RIZER   │ │  PLANNER   │ │  TELLER   │ │          │ │ FILTER  │   │
-│  │          │ │            │ │           │ │          │ │         │   │
-│  │Classifies│ │Creates a   │ │Generates, │ │Evaluates │ │Scans for│   │
-│  │request   │ │5-beat arc: │ │refines, & │ │on 5      │ │unsafe   │   │
-│  │into:     │ │            │ │rewrites   │ │criteria: │ │content: │   │
-│  │• category│ │1. Setup    │ │stories    │ │          │ │         │   │
-│  │• themes  │ │2. Rising   │ │           │ │1. Age    │ │• Fright │   │
-│  │• chars   │ │3. Climax   │ │Has 3 modes│ │2. Engage │ │• Violent│   │
-│  │• tone    │ │4. Falling  │ │• generate │ │3. Struct │ │• Themes │   │
-│  │• settings│ │5. Resolve  │ │• refine   │ │4. Lang   │ │• Scary  │   │
-│  │          │ │+ moral     │ │• safety   │ │5. Moral  │ │• Tone   │   │
-│  │Temp: 0.1 │ │+ char arc  │ │  rewrite  │ │          │ │• Lang   │   │
-│  │(precise) │ │            │ │           │ │Temp: 0.1 │ │         │   │
-│  │          │ │Temp: 0.1   │ │Temp: 0.8  │ │(precise) │ │Temp: 0.1│   │
-│  └────┬─────┘ └─────┬──────┘ └──┬───▲──▲─┘ └───┬───▲───┘ └──┬──▲──┘   │
-│       │             │           │   │  │       │   │        │  │      │
-│       │ category    │ arc       │   │  │       │   │        │  │      │
-│       └────►────────┘───►───────┘   │  │       │   │        │  │      │
-│                              draft  │  │  eval │   │ safety │  │      │
-│                                     │  │       │   │ result │  │      │
-│                            ┌────────┘  │  ┌────┘   │  ┌─────┘  │      │
-│                            │           │  │        │  │        │      │
-│                            ▼           │  ▼        │  ▼        │      │
-│                      ┌─────────────────┴──────────────────────┐│      │
-│                      │     QUALITY GATE        SAFETY GATE    ││      │
-│                      │   (avg score ≥ 7)    (hard pass/fail)  ││      │
-│                      │                                        ││      │
-│                      │  These are INDEPENDENT gates.          ││      │
-│                      │  A story must pass BOTH to be shown.   ││      │
-│                      │                                        ││      │
-│                      │  ⚠ The Judge uses AVERAGES, so a       ││      │
-│                      │  score of 0 on age_appropriateness     ││      │
-│                      │  + 10 on everything else = 8.0 avg     ││      │
-│                      │  → would PASS the Judge (threshold 7)  ││      │
-│                      │  → would FAIL the Safety Filter ✓      ││      │
-│                      └────────────────────────────────────────┘│      │
-└───────────────────────────────────────────────────────────────────────┘
+               │ story request                       │ final story +
+               │                                     │ judge scores +
+               ▼                                     │ safety status
+┌──────────────────────────────────────────────────────────────────────┐
+│                        🎯 ORCHESTRATOR                               │
+│                                                                      │
+│  Coordinates the pipeline and manages TWO independent gates.         │
+│  All arrows below happen THROUGH the Orchestrator — the agents       │
+│  never talk to each other directly.                                  │
+│                                                                      │
+│  Pipeline Flow:                                                      │
+│                                                                      │
+│  ┌──────────┐    ┌────────────┐    ┌───────────┐                     │
+│  │📂 CATEGO-│    │📐 STORY ARC│    │✍️ STORY-  │                     │
+│  │  RIZER   │    │  PLANNER   │    │  TELLER   │                     │
+│  │          │    │            │    │           │                     │
+│  │Classifies│    │Creates a   │    │Generates, │                     │
+│  │request   │    │5-beat arc: │    │refines, & │                     │
+│  │into:     │    │            │    │rewrites   │                     │
+│  │• category│    │1. Setup    │    │stories    │                     │
+│  │• themes  │    │2. Rising   │    │           │                     │
+│  │• chars   │    │3. Climax   │    │Has 4 modes│                     │
+│  │• tone    │    │4. Falling  │    │• generate │                     │
+│  │• settings│    │5. Resolve  │    │• refine   │                     │
+│  │          │    │+ moral     │    │• user rev │                     │
+│  │Temp: 0.1 │    │+ char arc  │    │• safety   │                     │
+│  │(precise) │    │            │    │  rewrite  │                     │
+│  │          │    │Temp: 0.1   │    │           │                     │
+│  │          │    │(precise)   │    │Temp: 0.8  │                     │
+│  │          │    │            │    │(creative) │                     │
+│  └────┬─────┘    └─────┬──────┘    └──┬────────┘                     │
+│       │                │              │                              │
+│       │ category       │ arc          │ story draft                  │
+│       ▼                ▼              ▼                              │
+│  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─   │
+│                                                                      │
+│       GATE 1: QUALITY (Judge)        GATE 2: SAFETY (Filter)         │
+│       Runs FIRST                     Runs SECOND (after Judge pass)  │
+│                                                                      │
+│  ┌──────────────────────┐       ┌──────────────────────┐             │
+│  │ ⚖️  JUDGE             │       │ 🛡️ SAFETY FILTER     │             │
+│  │                      │       │                      │             │
+│  │ Scores on 6 criteria │       │ Scans for 6 types of │             │
+│  │ (each 1-10):         │       │ harmful content:     │             │
+│  │                      │       │                      │             │
+│  │ 1. Age Appropriate   │       │ • Frightening imagery│             │
+│  │ 2. Engage+Bedtime    │       │ • Violence/aggression│             │
+│  │ 3. Narrative Struct  │       │ • Inappropriate theme│             │
+│  │ 4. Language/Vocab    │       │ • Scary scenarios    │             │
+│  │ 5. Moral/Lesson      │       │ • Negative emot tone │             │
+│  │ 6. Request Following │       │ • Inappropriate lang │             │
+│  │                      │       │                      │             │
+│  │ Pass: avg ≥ 7/10     │       │ Pass: binary YES/NO  │             │
+│  │ Fail: → Storyteller  │       │ Fail: → Storyteller  │             │
+│  │  gets feedback to    │       │  gets flags to do a  │             │
+│  │  refine (up to 3x)   │       │  safety rewrite (2x) │             │
+│  │                      │       │                      │             │
+│  │ Temp: 0.1 (precise)  │       │ Temp: 0.1 (precise)  │             │
+│  └──────────────────────┘       └──────────────────────┘             │
+│                                                                      │
+│  WHY TWO GATES?                                                      │
+│  The Judge uses AVERAGES. With 6 criteria, a story scoring:          │
+│    age_appropriateness = 0, all others = 10                          │
+│    → average = 8.3 → PASSES the Judge!                               │
+│  The Safety Filter catches this with a hard pass/fail.               │
+│                                                                      │
+│  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─   │
+│                                                                      │
+│  FEEDBACK LOOPS (all managed by the Orchestrator):                   │
+│                                                                      │
+│  Loop 1: Judge → Storyteller (quality refinement)                    │
+│    Judge sends scores + feedback → Storyteller refines → re-judge    │
+│    Up to 3 rounds. Stops when avg score ≥ 7.                         │
+│                                                                      │
+│  Loop 2: Safety Filter → Storyteller (safety rewrite)                │
+│    Filter sends flags + suggested changes → Storyteller rewrites     │
+│    Up to 2 rounds. Stops when is_safe = true.                        │
+│                                                                      │
+│  Loop 3: User → Storyteller (user feedback)                          │
+│    User sends change requests → Storyteller revises                  │
+│    → re-runs Judge AND Safety Filter on revised story.               │
+│    Unlimited rounds until user is satisfied.                         │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Why Two Independent Gates?
 
-The **Judge** evaluates overall story *quality* using an **average** of 5 scores.
+The **Judge** evaluates overall story *quality* using an **average** of 6 scores.
 This creates a critical vulnerability for children's content:
 
 ```
 Example: A story with scary violence but beautiful prose
 
-  Age Appropriateness:    2/10  ← DANGEROUS
-  Engagement & Pacing:   10/10
-  Narrative Structure:    9/10
+  Age Appropriateness:    0/10  ← DANGEROUS
+  Engagement & Bedtime:  10/10
+  Narrative Structure:   10/10
   Language & Vocabulary: 10/10
-  Moral & Lesson:         9/10
-  ─────────────────────────────
-  Average:              8.0/10  ← PASSES the Judge (threshold 7)!
+  Moral & Lesson:        10/10
+  Request Following:     10/10
+  ──────────────────────────────
+  Average:              8.3/10  ← PASSES the Judge (threshold 7)!
 ```
 
 The **Safety Filter** catches this. It does not score — it scans for specific
@@ -112,21 +138,21 @@ Arc Planner  ──►  { setup, rising_action, climax, falling_action,
 Storyteller  ──►  story text (400-600 words)
     │
     ▼
-Judge        ──►  { scores (5 criteria × 1-10), overall_score,
+Judge        ──►  { scores (6 criteria × 1-10), overall_score,
     │                feedback, strengths, areas_for_improvement }
     │
-    ├── score < 7 ──► Send feedback to Storyteller (up to 3 rounds)
-    │
+    ├── score < 7 ──► Orchestrator sends feedback to Storyteller
+    │                  (up to 3 rounds, then re-evaluates via Judge)
     ▼
 Safety       ──►  { is_safe, flags, severity, explanation,
 Filter             suggested_changes }
     │
-    ├── unsafe ──► Send flags to Storyteller for safety rewrite (up to 2x)
-    │
+    ├── unsafe ──► Orchestrator sends flags to Storyteller
+    │               (up to 2 rounds, then re-checks via Safety Filter)
     ▼
 User         ◄──  Final story + judge scores + safety status
     │
-    └── feedback ──► Storyteller → Judge → Safety Filter (full re-check)
+    └── feedback ──► Orchestrator → Storyteller → Judge → Safety Filter
 ```
 
 ## Component Descriptions
@@ -137,10 +163,21 @@ User         ◄──  Final story + judge scores + safety status
 | **Categorizer** | `categorizer.py` | Classifies story request into category + metadata | 0.1 (precise) | — |
 | **Arc Planner** | `story_arc.py` | Creates structured 5-beat narrative outline | 0.1 (precise) | — |
 | **Storyteller** | `storyteller.py` | Generates, refines, rewrites, and safety-fixes stories | 0.8 (creative) | — |
-| **Judge** | `judge.py` | Scores stories on 5 quality criteria | 0.1 (precise) | Quality (avg ≥ 7) |
+| **Judge** | `judge.py` | Scores stories on 6 quality criteria | 0.1 (precise) | Quality (avg ≥ 7) |
 | **Safety Filter** | `safety_filter.py` | Scans for harmful/inappropriate content | 0.1 (precise) | Safety (hard pass/fail) |
 | **Config** | `config.py` | Shared LLM client, model settings, `call_model()` | N/A | — |
 | **Prompts** | `prompts.py` | All prompt templates + category guidelines | N/A | — |
+
+## Judge Evaluation Criteria (6)
+
+| # | Criterion | What It Measures |
+|---|---|---|
+| 1 | **Age Appropriateness** | Content, vocabulary, and complexity suitable for ages 5-10 |
+| 2 | **Engagement & Bedtime Flow** | Holds attention AND winds down calmly toward sleep |
+| 3 | **Narrative Structure** | Clear arc (beginning, middle, end), coherent plot |
+| 4 | **Language & Vocabulary** | Vivid, age-appropriate language with sensory details |
+| 5 | **Moral & Lesson** | Positive message woven naturally, not preachy |
+| 6 | **Request Following** | Story faithfully addresses the user's original request |
 
 ## Category-Tailored Generation
 

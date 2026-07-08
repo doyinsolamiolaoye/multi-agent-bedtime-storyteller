@@ -179,24 +179,29 @@ Rate each criterion from 1 to 10 (1 = poor, 10 = excellent):
 
 1. **Age Appropriateness** — Is the content, vocabulary, and complexity \
 suitable for ages 5-10? Are there any scary, violent, or inappropriate elements?
-2. **Engagement & Pacing** — Would a child find this story interesting? \
-Does it maintain attention? Is the pacing right for a bedtime story?
+2. **Engagement & Bedtime Flow** — Would a child find this story interesting \
+enough to listen to? Does the pacing gradually wind down toward sleep? Does \
+the ending feel calm, cozy, and reassuring rather than exciting or stimulating?
 3. **Narrative Structure** — Does the story follow a clear arc (beginning, \
 middle, end)? Is the plot coherent and satisfying?
 4. **Language & Vocabulary** — Is the language vivid and age-appropriate? \
 Are there good sensory details, dialogue, and varied sentence structures?
 5. **Moral & Lesson** — Does the story convey a positive message or gentle \
 lesson? Is it woven naturally rather than being preachy?
+6. **Request Following** — Does the story faithfully address the user's \
+original request? Are the requested characters, themes, settings, and \
+scenario present and central to the story (not just mentioned in passing)?
 
 ## Return Format
 Return a JSON object:
 {{
     "scores": {{
         "age_appropriateness": <score>,
-        "engagement_and_pacing": <score>,
+        "engagement_and_bedtime_flow": <score>,
         "narrative_structure": <score>,
         "language_and_vocabulary": <score>,
-        "moral_and_lesson": <score>
+        "moral_and_lesson": <score>,
+        "request_following": <score>
     }},
     "overall_score": <average of all scores rounded to 1 decimal>,
     "feedback": "<2-3 sentences of specific, actionable feedback for improvement>",

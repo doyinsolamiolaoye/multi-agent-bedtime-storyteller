@@ -1,15 +1,16 @@
 """
 LLM Judge Agent
 ───────────────
-Evaluates a generated story on five quality criteria and returns
+Evaluates a generated story on six quality criteria and returns
 structured scores plus actionable feedback.
 
 Criteria (each 1-10):
   1. Age Appropriateness
-  2. Engagement & Pacing
+  2. Engagement & Bedtime Flow
   3. Narrative Structure
   4. Language & Vocabulary
   5. Moral & Lesson
+  6. Request Following
 """
 
 from config import call_model_json, PRECISE_TEMPERATURE, JUDGE_PASS_THRESHOLD
@@ -19,10 +20,11 @@ from prompts import JUDGE_PROMPT
 _DEFAULT_EVAL = {
     "scores": {
         "age_appropriateness": 5,
-        "engagement_and_pacing": 5,
+        "engagement_and_bedtime_flow": 5,
         "narrative_structure": 5,
         "language_and_vocabulary": 5,
         "moral_and_lesson": 5,
+        "request_following": 5,
     },
     "overall_score": 5.0,
     "feedback": "Unable to evaluate properly. Consider refining the story.",

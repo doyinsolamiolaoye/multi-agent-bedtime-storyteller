@@ -6,7 +6,7 @@ A multi-agent system that generates high-quality bedtime stories for children ag
 
 - **Intelligent Categorization** — Automatically classifies story requests (adventure, fantasy, animal, friendship, mystery, educational, fairy-tale) and tailors generation accordingly.
 - **Structured Story Arcs** — Plans a 5-beat narrative structure (Setup → Rising Action → Climax → Falling Action → Resolution) before writing.
-- **LLM Judge** — Evaluates every story on 5 quality criteria (age-appropriateness, engagement, structure, language, moral) and triggers automatic refinement if the score is below threshold.
+- **LLM Judge** — Evaluates every story on 6 quality criteria (age-appropriateness, engagement & bedtime flow, structure, language, moral, request following) and triggers automatic refinement if the score is below threshold.
 - **Safety Filter** — An independent hard safety gate that scans for frightening, violent, or inappropriate content. This is **separate from the Judge** because the Judge uses averages — a story could score 0 on age-appropriateness but 10 on everything else and still pass a 7/10 threshold. The Safety Filter catches exactly these cases with a binary pass/fail.
 - **Iterative Refinement** — Up to 3 rounds of judge-guided improvement to ensure quality, plus up to 2 rounds of safety-guided rewrites.
 - **Interactive Feedback** — Users can request changes after seeing the story, and the agent will revise accordingly (with automatic safety re-check).
@@ -28,7 +28,7 @@ User → Orchestrator → Categorizer → Arc Planner → Storyteller ↔ Judge 
 | Categorizer | `categorizer.py` | Classifies story requests |
 | Arc Planner | `story_arc.py` | Creates 5-beat narrative outlines |
 | Storyteller | `storyteller.py` | Generates, refines, revises, and safety-fixes stories |
-| Judge | `judge.py` | Quality gate — scores stories on 5 criteria (average ≥ 7) |
+| Judge | `judge.py` | Quality gate — scores stories on 6 criteria (average ≥ 7) |
 | Safety Filter | `safety_filter.py` | Safety gate — hard pass/fail scan for harmful content |
 | Config | `config.py` | Shared LLM client and settings |
 | Prompts | `prompts.py` | All prompt templates |
@@ -93,12 +93,13 @@ python main.py
   │  Criterion                      │ Score │
   ├─────────────────────────────────┼───────┤
   │  Age Appropriateness            │    9  │
-  │  Engagement And Pacing          │    8  │
+  │  Engagement And Bedtime Flow    │    8  │
   │  Narrative Structure            │    8  │
   │  Language And Vocabulary        │    9  │
   │  Moral And Lesson               │    8  │
+  │  Request Following              │    9  │
   ├─────────────────────────────────┼───────┤
-  │  Overall                        │  8.4  │
+  │  Overall                        │  8.5  │
   └─────────────────────────────────┴───────┘
 
   🎉  Story passed quality check!
@@ -178,6 +179,6 @@ python -m pytest tests/ -v
 | `test_storyteller.py` | 12 | All 4 storyteller functions — prompt content verification and temperature checks |
 | `test_prompts.py` | 21 | All 8 prompt templates format correctly, category guidelines for all 8 categories, prompt content validation |
 
-> 💡 **Notable test**: `test_average_vulnerability_example` in `test_judge.py` explicitly proves that a story scoring 0 on age-appropriateness + 10 on everything else = 8.0 average → **passes the Judge** — demonstrating exactly why the Safety Filter exists as an independent gate.
+> 💡 **Notable test**: `test_average_vulnerability_example` in `test_judge.py` explicitly proves that a story scoring 0 on age-appropriateness + 10 on everything else = 8.3 average → **passes the Judge** — demonstrating exactly why the Safety Filter exists as an independent gate.
 
 ---

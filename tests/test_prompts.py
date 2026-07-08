@@ -158,14 +158,16 @@ class TestPromptContent:
         prompt = STORYTELLER_PROMPT
         assert "5" in prompt and "10" in prompt
 
-    def test_judge_has_five_criteria(self):
-        """Judge prompt should mention all 5 evaluation criteria."""
+    def test_judge_has_six_criteria(self):
+        """Judge prompt should mention all 6 evaluation criteria."""
         prompt = JUDGE_PROMPT
         assert "Age Appropriateness" in prompt
         assert "Engagement" in prompt
+        assert "Bedtime Flow" in prompt
         assert "Narrative Structure" in prompt
         assert "Language" in prompt
         assert "Moral" in prompt
+        assert "Request Following" in prompt
 
     def test_safety_filter_has_six_checks(self):
         """Safety filter prompt should cover all 6 safety categories."""
