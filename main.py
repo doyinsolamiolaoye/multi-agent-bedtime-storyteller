@@ -14,15 +14,22 @@ import openai
 
 """
 FUTURE FEATURES & ENHANCEMENTS :
-1. Add a Text-to-Speech (TTS) layer using OpenAI's TTS API so the story
+1. Implement prompt-level optimization using the Judge's scores as a fitness
+   function.  The current system does output-level refinement (the Judge
+   evaluates a story and the Storyteller rewrites it), but the prompt
+   templates themselves are static.  Using techniques like DSPy or automatic
+   prompt engineering (APE), I would systematically evolve the prompt
+   templates over many runs so that even first-draft stories improve over
+   time — the system would get smarter, not just individual stories.
+2. Add a Text-to-Speech (TTS) layer using OpenAI's TTS API so the story
    could be read aloud — a huge UX win for actual bedtime use.
-2. Build a small Streamlit or Gradio web UI with illustrations generated
+3. Build a small Streamlit or Gradio web UI with illustrations generated
    via DALL-E for each story beat, turning the output into a mini
    picture-book experience.
-3. Implement a "story memory" system that tracks previously told stories
+4. Implement a "story memory" system that tracks previously told stories
    and the child's preferences (favourite characters, themes) so the
    agent can offer sequels or personalised recommendations.
-4. Add a multi-language support layer so stories can be generated in
+5. Add a multi-language support layer so stories can be generated in
    different languages based on the user's preference, widening
    accessibility for non-English-speaking families.
 """
